@@ -1,0 +1,13 @@
+langchain
+
+langchain-aws
+
+langgraph
+
+boto3
+
+python-dotenv
+
+streamlit
+
+pydantic
