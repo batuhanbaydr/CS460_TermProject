@@ -1,11 +1,11 @@
-from models import get_models
+from models import get_test_models
 
 
 def run_prompt_on_models(user_prompt: str) -> dict:
     """
-    Sends the same prompt to all configured models and returns their outputs.
+    Sends the same prompt to all configured test models and returns their outputs.
     """
-    models = get_models()
+    models = get_test_models()
     results = {}
 
     for model_name, model in models.items():

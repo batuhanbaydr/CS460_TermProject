@@ -1,9 +1,9 @@
 from graph import build_graph
 
 
-def print_results(results: dict):
+def print_results(title: str, results: dict):
     print("\n==============================")
-    print("MODEL OUTPUTS")
+    print(title)
     print("==============================")
 
     for model_name, result in results.items():
@@ -15,30 +15,53 @@ def print_results(results: dict):
             print(f"ERROR: {result['error']}")
 
 
-def print_evaluation(evaluation: dict):
+def print_evaluation(title: str, evaluation: dict):
     print("\n==============================")
-    print("PROMPT EVALUATION")
+    print(title)
     print("==============================")
+
+    if "error" in evaluation:
+        print("Evaluator error:")
+        print(evaluation["error"])
+        print(evaluation.get("raw_response", ""))
+        return
 
     print(f"\nOverall Score: {evaluation['overall_score']} / 5")
     print(f"Needs Improvement: {evaluation['needs_improvement']}")
 
-    print("\nScores:")
-    for criterion, score in evaluation["scores"].items():
-        print(f"- {criterion}: {score}/5")
+    prompt_eval = evaluation["prompt_evaluation"]
 
-    if evaluation["problems"]:
-        print("\nProblems:")
-        for problem in evaluation["problems"]:
-            print(f"- {problem}")
+    print("\nPrompt-Level Evaluation:")
+    for key, value in prompt_eval.items():
+        if key not in ["main_issues", "suggestions"]:
+            print(f"- {key}: {value}")
 
-    if evaluation["suggestions"]:
-        print("\nSuggestions:")
-        for suggestion in evaluation["suggestions"]:
+    if prompt_eval["main_issues"]:
+        print("\nPrompt Issues:")
+        for issue in prompt_eval["main_issues"]:
+            print(f"- {issue}")
+
+    if prompt_eval["suggestions"]:
+        print("\nPrompt Suggestions:")
+        for suggestion in prompt_eval["suggestions"]:
             print(f"- {suggestion}")
+
+    print("\nPer-Model Evaluations:")
+    for model_name, model_eval in evaluation["model_evaluations"].items():
+        print(f"\n--- {model_name} ---")
+        for key, value in model_eval.items():
+            print(f"- {key}: {value}")
+
+    cross_eval = evaluation["cross_model_evaluation"]
+
+    print("\nCross-Model Evaluation:")
+    for key, value in cross_eval.items():
+        print(f"- {key}: {value}")
 
 
 if __name__ == "__main__":
+    print("PromptRefiner is starting...")
+
     user_prompt = input("Enter a prompt to test: ")
 
     app = build_graph()
@@ -56,5 +79,32 @@ if __name__ == "__main__":
 
     final_state = app.invoke(initial_state)
 
-    print_results(final_state["model_outputs_before"])
-    print_evaluation(final_state["evaluation_before"])
+    print("\n==============================")
+    print("ORIGINAL PROMPT")
+    print("==============================")
+    print(final_state["original_prompt"])
+
+    print_results(
+        "MODEL OUTPUTS BEFORE IMPROVEMENT",
+        final_state["model_outputs_before"]
+    )
+
+    print_evaluation(
+        "PROMPT EVALUATION BEFORE IMPROVEMENT",
+        final_state["evaluation_before"]
+    )
+
+    print("\n==============================")
+    print("IMPROVED PROMPT")
+    print("==============================")
+    print(final_state["improved_prompt"])
+
+    print_results(
+        "MODEL OUTPUTS AFTER IMPROVEMENT",
+        final_state["model_outputs_after"]
+    )
+
+    print_evaluation(
+        "PROMPT EVALUATION AFTER IMPROVEMENT",
+        final_state["evaluation_after"]
+    )

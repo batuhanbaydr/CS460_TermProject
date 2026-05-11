@@ -1,127 +1,140 @@
-def evaluate_prompt_quality(original_prompt: str, model_outputs: dict) -> dict:
+import json
+from models import get_judge_model
+
+
+def extract_json(text: str) -> dict:
     """
-    Evaluates the prompt using simple rule-based checks.
-
-    This is the first version of the evaluator.
-    Later, we can improve it with an LLM-as-judge evaluator.
+    Attempts to extract JSON from an LLM response.
     """
 
-    scores = {
-        "clarity": 0,
-        "specificity": 0,
-        "output_format": 0,
-        "constraint_following": 0,
-        "cross_model_consistency": 0,
-    }
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
 
-    problems = []
-    suggestions = []
+    start = text.find("{")
+    end = text.rfind("}")
 
-    prompt_lower = original_prompt.lower()
-
-    # 1. Clarity check
-    if len(original_prompt.split()) >= 5:
-        scores["clarity"] = 4
-    else:
-        scores["clarity"] = 2
-        problems.append("The prompt is very short and may be unclear.")
-        suggestions.append("Make the task more explicit.")
-
-    # 2. Specificity check
-    specific_words = [
-        "summarize",
-        "classify",
-        "rewrite",
-        "explain",
-        "compare",
-        "analyze",
-        "generate",
-        "list",
-    ]
-
-    if any(word in prompt_lower for word in specific_words):
-        scores["specificity"] = 4
-    else:
-        scores["specificity"] = 2
-        problems.append("The prompt does not clearly specify the task type.")
-        suggestions.append("Add a clear action verb such as summarize, classify, rewrite, or explain.")
-
-    # 3. Output format check
-    format_words = [
-        "bullet",
-        "json",
-        "table",
-        "paragraph",
-        "list",
-        "numbered",
-        "format",
-    ]
-
-    if any(word in prompt_lower for word in format_words):
-        scores["output_format"] = 5
-    else:
-        scores["output_format"] = 2
-        problems.append("The prompt does not specify an output format.")
-        suggestions.append("Specify the desired output format, such as bullet points, JSON, or a table.")
-
-    # 4. Constraint check
-    constraint_words = [
-        "under",
-        "within",
-        "exactly",
-        "at least",
-        "at most",
-        "only",
-        "do not",
-        "avoid",
-        "must",
-    ]
-
-    if any(word in prompt_lower for word in constraint_words):
-        scores["constraint_following"] = 5
-    else:
-        scores["constraint_following"] = 3
-        suggestions.append("Add constraints if needed, such as length, tone, audience, or style.")
-
-    # 5. Cross-model consistency check
-    successful_outputs = [
-        result["output"]
-        for result in model_outputs.values()
-        if result.get("success") and result.get("output")
-    ]
-
-    if len(successful_outputs) < 2:
-        scores["cross_model_consistency"] = 1
-        problems.append("Not enough successful model outputs to compare consistency.")
-    else:
-        lengths = [len(output.split()) for output in successful_outputs]
-        min_length = min(lengths)
-        max_length = max(lengths)
-
-        if min_length == 0:
-            scores["cross_model_consistency"] = 1
-        else:
-            length_ratio = max_length / min_length
-
-            if length_ratio <= 1.5:
-                scores["cross_model_consistency"] = 5
-            elif length_ratio <= 2.5:
-                scores["cross_model_consistency"] = 3
-                problems.append("The model outputs have somewhat different lengths.")
-                suggestions.append("Make the expected answer length more explicit.")
-            else:
-                scores["cross_model_consistency"] = 2
-                problems.append("The model outputs are very different in length.")
-                suggestions.append("Add clearer structure and length requirements.")
-
-    overall_score = round(sum(scores.values()) / len(scores), 2)
-
-    needs_improvement = overall_score < 4
+    if start != -1 and end != -1 and end > start:
+        try:
+            return json.loads(text[start:end + 1])
+        except json.JSONDecodeError:
+            pass
 
     return {
-        "scores": scores,
-        "overall_score": overall_score,
-        "needs_improvement": needs_improvement,
-        "problems": problems,
-        "suggestions": suggestions,
+        "error": "Failed to parse evaluator JSON.",
+        "raw_response": text,
     }
+
+
+def evaluate_prompt_quality(original_prompt: str, model_outputs: dict) -> dict:
+    """
+    Uses Claude Sonnet 4.5 as an LLM judge to evaluate:
+    1. the original prompt,
+    2. each model's output,
+    3. cross-model consistency.
+    """
+
+    judge_model = get_judge_model()
+
+    formatted_outputs = json.dumps(model_outputs, indent=2)
+
+    evaluator_instruction = f"""
+You are a strict LLM prompt evaluation judge.
+
+You are evaluating a user's prompt and the outputs produced by two different LLMs.
+
+User prompt:
+{original_prompt}
+
+Model outputs:
+{formatted_outputs}
+
+Evaluate the prompt and outputs using the following logic.
+
+1. Prompt-level evaluation:
+- task_clarity: Is the user asking for a clear task?
+- input_completeness: Does the prompt include all necessary input? For example, "Make this better" is incomplete because no text is provided.
+- specificity: Are details, audience, scope, or goal clear?
+- output_format: Does the prompt specify the desired output format?
+- constraint_quality: Does the prompt include useful constraints, such as length, tone, style, or rules?
+- hallucination_safety: Does the prompt prevent the model from inventing missing content?
+- model_independence: Is the prompt likely to work similarly across different LLMs?
+
+2. Per-model output evaluation:
+For each model output, evaluate:
+- relevance: Did the answer respond to the user's actual prompt?
+- instruction_following: Did it follow the prompt?
+- missing_input_handling: If required input was missing, did the model ask for it instead of inventing content?
+- hallucination_safety: Did the model avoid inventing unsupported content?
+- format_compliance: Did it follow any requested format?
+- helpfulness: Was the answer useful and appropriate?
+
+3. Cross-model evaluation:
+Evaluate whether the two models interpreted the prompt similarly.
+Watch for cases where one model asks for missing input while another invents content.
+
+Important:
+- Score every criterion from 1 to 5.
+- 1 means very poor.
+- 5 means excellent.
+- Be strict.
+- If the prompt requires missing text, data, code, an article, an image, or context, input_completeness should be low.
+- However, if the prompt is an improved prompt template and includes a clear placeholder such as [PASTE TEXT HERE], [PASTE CODE HERE], [PASTE ARTICLE HERE], [INSERT TEXT], or similar, do not punish it for missing input.
+- In that case, evaluate whether the placeholder and missing-input behavior are clear.
+- If the model correctly asks for missing input instead of inventing content, missing_input_handling and hallucination_safety should be high.
+- Return only valid JSON.
+- Do not include markdown.
+
+Use exactly this JSON structure:
+
+{{
+  "prompt_evaluation": {{
+    "task_clarity": 0,
+    "input_completeness": 0,
+    "specificity": 0,
+    "output_format": 0,
+    "constraint_quality": 0,
+    "hallucination_safety": 0,
+    "model_independence": 0,
+    "overall_score": 0,
+    "main_issues": [],
+    "suggestions": []
+  }},
+  "model_evaluations": {{
+    "amazon_nova_lite": {{
+      "relevance": 0,
+      "instruction_following": 0,
+      "missing_input_handling": 0,
+      "hallucination_safety": 0,
+      "format_compliance": 0,
+      "helpfulness": 0,
+      "overall_score": 0,
+      "main_issue": ""
+    }},
+    "meta_llama_3_8b_instruct": {{
+      "relevance": 0,
+      "instruction_following": 0,
+      "missing_input_handling": 0,
+      "hallucination_safety": 0,
+      "format_compliance": 0,
+      "helpfulness": 0,
+      "overall_score": 0,
+      "main_issue": ""
+    }}
+  }},
+  "cross_model_evaluation": {{
+    "consistency_score": 0,
+    "same_intent": false,
+    "same_output_type": false,
+    "reason": ""
+  }},
+  "overall_score": 0,
+  "needs_improvement": true
+}}
+"""
+
+    response = judge_model.invoke(evaluator_instruction)
+    evaluation = extract_json(response.content)
+
+    return evaluation
