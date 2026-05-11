@@ -15,6 +15,29 @@ def print_results(results: dict):
             print(f"ERROR: {result['error']}")
 
 
+def print_evaluation(evaluation: dict):
+    print("\n==============================")
+    print("PROMPT EVALUATION")
+    print("==============================")
+
+    print(f"\nOverall Score: {evaluation['overall_score']} / 5")
+    print(f"Needs Improvement: {evaluation['needs_improvement']}")
+
+    print("\nScores:")
+    for criterion, score in evaluation["scores"].items():
+        print(f"- {criterion}: {score}/5")
+
+    if evaluation["problems"]:
+        print("\nProblems:")
+        for problem in evaluation["problems"]:
+            print(f"- {problem}")
+
+    if evaluation["suggestions"]:
+        print("\nSuggestions:")
+        for suggestion in evaluation["suggestions"]:
+            print(f"- {suggestion}")
+
+
 if __name__ == "__main__":
     user_prompt = input("Enter a prompt to test: ")
 
@@ -34,3 +57,4 @@ if __name__ == "__main__":
     final_state = app.invoke(initial_state)
 
     print_results(final_state["model_outputs_before"])
+    print_evaluation(final_state["evaluation_before"])
