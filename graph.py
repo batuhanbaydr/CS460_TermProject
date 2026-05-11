@@ -7,11 +7,10 @@ from optimizer import optimize_prompt
 
 def run_original_prompt_node(state: PromptState) -> PromptState:
     """
-    LangGraph node that sends the original prompt to all selected models.
+    LangGraph node that sends the original prompt to all selected test models.
     """
 
     original_prompt = state["original_prompt"]
-
     model_outputs = run_prompt_on_models(original_prompt)
 
     state["model_outputs_before"] = model_outputs
@@ -21,8 +20,7 @@ def run_original_prompt_node(state: PromptState) -> PromptState:
 
 def evaluate_prompt_node(state: PromptState) -> PromptState:
     """
-    LangGraph node that evaluates the original prompt
-    based on the outputs from different models.
+    LangGraph node that evaluates the original prompt and model outputs.
     """
 
     original_prompt = state["original_prompt"]
@@ -33,6 +31,22 @@ def evaluate_prompt_node(state: PromptState) -> PromptState:
     state["evaluation_before"] = evaluation
 
     return state
+
+
+def decide_next_step(state: PromptState) -> str:
+    """
+    Decides whether the prompt needs optimization.
+
+    If the evaluator says the prompt needs improvement, continue to optimizer.
+    Otherwise, end the graph.
+    """
+
+    evaluation = state["evaluation_before"]
+
+    if evaluation.get("needs_improvement", True):
+        return "optimize_prompt"
+
+    return "end"
 
 
 def optimize_prompt_node(state: PromptState) -> PromptState:
@@ -52,11 +66,10 @@ def optimize_prompt_node(state: PromptState) -> PromptState:
 
 def run_improved_prompt_node(state: PromptState) -> PromptState:
     """
-    LangGraph node that sends the improved prompt to all selected models.
+    LangGraph node that sends the improved prompt to all selected test models.
     """
 
     improved_prompt = state["improved_prompt"]
-
     model_outputs = run_prompt_on_models(improved_prompt)
 
     state["model_outputs_after"] = model_outputs
@@ -66,8 +79,7 @@ def run_improved_prompt_node(state: PromptState) -> PromptState:
 
 def evaluate_improved_prompt_node(state: PromptState) -> PromptState:
     """
-    LangGraph node that evaluates the improved prompt
-    based on the outputs from different models.
+    LangGraph node that evaluates the improved prompt and improved model outputs.
     """
 
     improved_prompt = state["improved_prompt"]
@@ -82,16 +94,20 @@ def evaluate_improved_prompt_node(state: PromptState) -> PromptState:
 
 def build_graph():
     """
-    Builds the current LangGraph workflow.
+    Builds the LangGraph workflow.
 
-    Current workflow:
+    Workflow:
     START
       -> run_original_prompt
       -> evaluate_prompt
-      -> optimize_prompt
-      -> run_improved_prompt
-      -> evaluate_improved_prompt
-      -> END
+      -> conditional decision:
+            if needs_improvement=True:
+                optimize_prompt
+                -> run_improved_prompt
+                -> evaluate_improved_prompt
+                -> END
+            else:
+                END
     """
 
     graph = StateGraph(PromptState)
@@ -104,7 +120,16 @@ def build_graph():
 
     graph.add_edge(START, "run_original_prompt")
     graph.add_edge("run_original_prompt", "evaluate_prompt")
-    graph.add_edge("evaluate_prompt", "optimize_prompt")
+
+    graph.add_conditional_edges(
+        "evaluate_prompt",
+        decide_next_step,
+        {
+            "optimize_prompt": "optimize_prompt",
+            "end": END,
+        },
+    )
+
     graph.add_edge("optimize_prompt", "run_improved_prompt")
     graph.add_edge("run_improved_prompt", "evaluate_improved_prompt")
     graph.add_edge("evaluate_improved_prompt", END)

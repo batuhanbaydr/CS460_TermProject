@@ -36,12 +36,12 @@ def print_evaluation(title: str, evaluation: dict):
         if key not in ["main_issues", "suggestions"]:
             print(f"- {key}: {value}")
 
-    if prompt_eval["main_issues"]:
+    if prompt_eval.get("main_issues"):
         print("\nPrompt Issues:")
         for issue in prompt_eval["main_issues"]:
             print(f"- {issue}")
 
-    if prompt_eval["suggestions"]:
+    if prompt_eval.get("suggestions"):
         print("\nPrompt Suggestions:")
         for suggestion in prompt_eval["suggestions"]:
             print(f"- {suggestion}")
@@ -94,17 +94,23 @@ if __name__ == "__main__":
         final_state["evaluation_before"]
     )
 
-    print("\n==============================")
-    print("IMPROVED PROMPT")
-    print("==============================")
-    print(final_state["improved_prompt"])
+    if final_state.get("improved_prompt"):
+        print("\n==============================")
+        print("IMPROVED PROMPT")
+        print("==============================")
+        print(final_state["improved_prompt"])
 
-    print_results(
-        "MODEL OUTPUTS AFTER IMPROVEMENT",
-        final_state["model_outputs_after"]
-    )
+        print_results(
+            "MODEL OUTPUTS AFTER IMPROVEMENT",
+            final_state["model_outputs_after"]
+        )
 
-    print_evaluation(
-        "PROMPT EVALUATION AFTER IMPROVEMENT",
-        final_state["evaluation_after"]
-    )
+        print_evaluation(
+            "PROMPT EVALUATION AFTER IMPROVEMENT",
+            final_state["evaluation_after"]
+        )
+    else:
+        print("\n==============================")
+        print("NO OPTIMIZATION NEEDED")
+        print("==============================")
+        print("The original prompt passed the evaluation, so the optimizer was skipped.")
