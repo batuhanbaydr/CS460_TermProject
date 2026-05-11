@@ -1,4 +1,4 @@
-from runner import run_prompt_on_models
+from graph import build_graph
 
 
 def print_results(results: dict):
@@ -18,6 +18,19 @@ def print_results(results: dict):
 if __name__ == "__main__":
     user_prompt = input("Enter a prompt to test: ")
 
-    outputs = run_prompt_on_models(user_prompt)
+    app = build_graph()
 
-    print_results(outputs)
+    initial_state = {
+        "original_prompt": user_prompt,
+        "task_type": "general",
+        "model_outputs_before": {},
+        "evaluation_before": {},
+        "improved_prompt": "",
+        "model_outputs_after": {},
+        "evaluation_after": {},
+        "final_report": "",
+    }
+
+    final_state = app.invoke(initial_state)
+
+    print_results(final_state["model_outputs_before"])
