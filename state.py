@@ -16,6 +16,9 @@ class PromptState(TypedDict):
     classification_result: Dict[str, Any]
     prompt_type: str
 
+    # Prompt risk analysis
+    risk_report: Dict[str, Any]
+
     # Model outputs before optimization
     model_outputs_before: Dict[str, Dict[str, Any]]
 

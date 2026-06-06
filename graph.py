@@ -4,6 +4,7 @@ from classifier import classify_prompt
 from runner import run_prompt_on_models
 from evaluator import evaluate_prompt_quality
 from optimizer import optimize_prompt
+from risk_detector import detect_prompt_risks
 
 
 def classify_prompt_node(state: PromptState) -> PromptState:
@@ -17,6 +18,20 @@ def classify_prompt_node(state: PromptState) -> PromptState:
 
     state["classification_result"] = classification
     state["prompt_type"] = classification.get("primary_type", "general")
+
+    return state
+
+def detect_risks_node(state: PromptState) -> PromptState:
+    """
+    LangGraph node that detects prompt risks and likely failure modes.
+    """
+
+    original_prompt = state["original_prompt"]
+    classification_result = state["classification_result"]
+
+    risk_report = detect_prompt_risks(original_prompt, classification_result)
+
+    state["risk_report"] = risk_report
 
     return state
 
@@ -112,6 +127,7 @@ def build_graph():
     Workflow:
     START
       -> classify_prompt
+      -> detect_risks
       -> run_original_prompt
       -> evaluate_prompt
       -> conditional decision:
@@ -132,9 +148,11 @@ def build_graph():
     graph.add_node("optimize_prompt", optimize_prompt_node)
     graph.add_node("run_improved_prompt", run_improved_prompt_node)
     graph.add_node("evaluate_improved_prompt", evaluate_improved_prompt_node)
+    graph.add_node("detect_risks", detect_risks_node)
 
     graph.add_edge(START, "classify_prompt")
-    graph.add_edge("classify_prompt", "run_original_prompt")
+    graph.add_edge("classify_prompt", "detect_risks")
+    graph.add_edge("detect_risks", "run_original_prompt")
     graph.add_edge("run_original_prompt", "evaluate_prompt")
 
     graph.add_conditional_edges(

@@ -160,7 +160,8 @@ if __name__ == "__main__":
         "task_type": "general",
 
         "classification_result": {},
-        "prompt_type": "",        
+        "prompt_type": "",     
+        "risk_report": {},   
 
         "model_outputs_before": {},
         "evaluation_before": {},
@@ -182,6 +183,34 @@ if __name__ == "__main__":
     print("==============================")
     for key, value in final_state["classification_result"].items():
         print(f"- {key}: {value}")
+
+    print("\n==============================")
+    print("PROMPT RISK REPORT")
+    print("==============================")
+
+    risk_report = final_state.get("risk_report", {})
+
+    if "error" in risk_report:
+        print("Risk detector error:")
+        print(risk_report["error"])
+        print(risk_report.get("raw_response", ""))
+    else:
+        print(f"Overall Risk Level: {risk_report.get('overall_risk_level', 'N/A')}")
+
+        print("\nRisks:")
+        for risk_name, risk_data in risk_report.get("risks", {}).items():
+            print(f"- {risk_name}: {risk_data.get('level', 'N/A')}")
+            print(f"  Reason: {risk_data.get('reason', '')}")
+
+        if risk_report.get("main_failure_modes"):
+            print("\nMain Failure Modes:")
+            for mode in risk_report["main_failure_modes"]:
+                print(f"- {mode}")
+
+        if risk_report.get("recommendations"):
+            print("\nRisk-Based Recommendations:")
+            for rec in risk_report["recommendations"]:
+                print(f"- {rec}")        
 
     print_results(
         "MODEL OUTPUTS BEFORE IMPROVEMENT",
@@ -213,6 +242,8 @@ if __name__ == "__main__":
         print("NO OPTIMIZATION NEEDED")
         print("==============================")
         print("The original prompt passed the evaluation, so the optimizer was skipped.")
+
+
 
 
     
