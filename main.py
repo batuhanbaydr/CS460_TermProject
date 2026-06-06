@@ -120,6 +120,10 @@ if __name__ == "__main__":
     initial_state = {
         "original_prompt": user_prompt,
         "task_type": "general",
+
+        "classification_result": {},
+        "prompt_type": "",        
+
         "model_outputs_before": {},
         "evaluation_before": {},
         "improved_prompt": "",
