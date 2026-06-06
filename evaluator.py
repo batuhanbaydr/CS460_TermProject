@@ -27,7 +27,17 @@ def extract_json(text: str) -> dict:
     }
 
 
-def evaluate_prompt_quality(original_prompt: str, model_outputs: dict) -> dict:
+def evaluate_prompt_quality(
+
+    original_prompt: str,
+
+    model_outputs: dict,
+
+    classification_result: dict | None = None,
+
+    risk_report: dict | None = None,
+
+) -> dict:
     """
     Uses Claude Sonnet 4.5 as an LLM judge to evaluate:
     1. the original prompt,
@@ -39,6 +49,10 @@ def evaluate_prompt_quality(original_prompt: str, model_outputs: dict) -> dict:
 
     formatted_outputs = json.dumps(model_outputs, indent=2)
 
+    classification_text = json.dumps(classification_result or {}, indent=2)
+
+    risk_text = json.dumps(risk_report or {}, indent=2)
+
     evaluator_instruction = f"""
 You are a strict LLM prompt evaluation judge.
 
@@ -46,6 +60,12 @@ You are evaluating a user's prompt and the outputs produced by two different LLM
 
 User prompt:
 {original_prompt}
+
+Prompt classification:
+{classification_text}
+
+Prompt risk report:
+{risk_text}
 
 Model outputs:
 {formatted_outputs}

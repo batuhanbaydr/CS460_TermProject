@@ -57,7 +57,15 @@ def evaluate_prompt_node(state: PromptState) -> PromptState:
     original_prompt = state["original_prompt"]
     model_outputs = state["model_outputs_before"]
 
-    evaluation = evaluate_prompt_quality(original_prompt, model_outputs)
+    classification_result = state["classification_result"]
+    risk_report = state["risk_report"]
+
+    evaluation = evaluate_prompt_quality(
+        original_prompt,
+        model_outputs,
+        classification_result,
+        risk_report,
+    )
 
     state["evaluation_before"] = evaluation
 
@@ -113,7 +121,15 @@ def evaluate_improved_prompt_node(state: PromptState) -> PromptState:
     improved_prompt = state["improved_prompt"]
     model_outputs = state["model_outputs_after"]
 
-    evaluation = evaluate_prompt_quality(improved_prompt, model_outputs)
+    classification_result = state["classification_result"]
+    risk_report = state["risk_report"]
+
+    evaluation = evaluate_prompt_quality(
+        improved_prompt,
+        model_outputs,
+        classification_result,
+        risk_report,
+    )
 
     state["evaluation_after"] = evaluation
 
