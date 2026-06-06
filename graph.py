@@ -93,7 +93,15 @@ def optimize_prompt_node(state: PromptState) -> PromptState:
     original_prompt = state["original_prompt"]
     evaluation = state["evaluation_before"]
 
-    improved_prompt = optimize_prompt(original_prompt, evaluation)
+    classification_result = state["classification_result"]
+    risk_report = state["risk_report"]
+
+    improved_prompt = optimize_prompt(
+        original_prompt,
+        evaluation,
+        classification_result,
+        risk_report,
+    )
 
     state["improved_prompt"] = improved_prompt
 
