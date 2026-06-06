@@ -177,6 +177,12 @@ if __name__ == "__main__":
     print("==============================")
     print(final_state["original_prompt"])
 
+    print("\n==============================")
+    print("PROMPT CLASSIFICATION")
+    print("==============================")
+    for key, value in final_state["classification_result"].items():
+        print(f"- {key}: {value}")
+
     print_results(
         "MODEL OUTPUTS BEFORE IMPROVEMENT",
         final_state["model_outputs_before"]

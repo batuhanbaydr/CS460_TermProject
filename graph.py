@@ -1,8 +1,24 @@
 from langgraph.graph import StateGraph, START, END
 from state import PromptState
+from classifier import classify_prompt
 from runner import run_prompt_on_models
 from evaluator import evaluate_prompt_quality
 from optimizer import optimize_prompt
+
+
+def classify_prompt_node(state: PromptState) -> PromptState:
+    """
+    LangGraph node that classifies the original user prompt.
+    """
+
+    original_prompt = state["original_prompt"]
+
+    classification = classify_prompt(original_prompt)
+
+    state["classification_result"] = classification
+    state["prompt_type"] = classification.get("primary_type", "general")
+
+    return state
 
 
 def run_original_prompt_node(state: PromptState) -> PromptState:
@@ -36,9 +52,6 @@ def evaluate_prompt_node(state: PromptState) -> PromptState:
 def decide_next_step(state: PromptState) -> str:
     """
     Decides whether the prompt needs optimization.
-
-    If the evaluator says the prompt needs improvement, continue to optimizer.
-    Otherwise, end the graph.
     """
 
     evaluation = state["evaluation_before"]
@@ -98,6 +111,7 @@ def build_graph():
 
     Workflow:
     START
+      -> classify_prompt
       -> run_original_prompt
       -> evaluate_prompt
       -> conditional decision:
@@ -112,13 +126,15 @@ def build_graph():
 
     graph = StateGraph(PromptState)
 
+    graph.add_node("classify_prompt", classify_prompt_node)
     graph.add_node("run_original_prompt", run_original_prompt_node)
     graph.add_node("evaluate_prompt", evaluate_prompt_node)
     graph.add_node("optimize_prompt", optimize_prompt_node)
     graph.add_node("run_improved_prompt", run_improved_prompt_node)
     graph.add_node("evaluate_improved_prompt", evaluate_improved_prompt_node)
 
-    graph.add_edge(START, "run_original_prompt")
+    graph.add_edge(START, "classify_prompt")
+    graph.add_edge("classify_prompt", "run_original_prompt")
     graph.add_edge("run_original_prompt", "evaluate_prompt")
 
     graph.add_conditional_edges(
