@@ -1,4 +1,5 @@
 from graph import build_graph
+from logger import save_run
 
 
 def print_results(title: str, results: dict):
@@ -248,3 +249,10 @@ if __name__ == "__main__":
 
     
     print_comparison_summary(final_state)
+
+    results_path = save_run(final_state)
+
+    print("\n==============================")
+    print("RUN SAVED")
+    print("==============================")
+    print(f"Saved result to: {results_path}")
