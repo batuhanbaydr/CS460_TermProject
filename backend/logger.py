@@ -77,6 +77,13 @@ def build_log_record(final_state: dict) -> dict:
         "consistency_change": consistency_change,
 
         "final_decision": final_decision,
+
+        "benchmark_id": final_state.get("benchmark_id", ""),
+        "benchmark_category": final_state.get("benchmark_category", ""),
+        "benchmark_difficulty": final_state.get("benchmark_difficulty", ""),
+        "expected_weakness": final_state.get("expected_weakness", ""),
+        "evaluation_focus": final_state.get("evaluation_focus", []),
+        "ideal_prompt_components": final_state.get("ideal_prompt_components", []),
     }
 
 

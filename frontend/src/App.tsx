@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect ,useState } from "react";
 import "./App.css";
 
 type RiskLevel = "low" | "medium" | "high";
@@ -80,6 +80,23 @@ type FinalState = {
   improved_prompt: string;
   model_outputs_after: Record<string, ModelOutput>;
   evaluation_after: Evaluation;
+};
+
+type BreakdownItem = {
+  count: number;
+  average_original_score: number | null;
+  average_improved_score: number | null;
+  average_score_gain: number | null;
+};
+
+type ExperimentSummary = {
+  total_runs: number;
+  optimized_runs: number;
+  average_original_score: number | null;
+  average_improved_score: number | null;
+  average_score_gain: number | null;
+  category_breakdown: Record<string, BreakdownItem>;
+  difficulty_breakdown: Record<string, BreakdownItem>;
 };
 
 const mockResult: FinalState = {
@@ -411,6 +428,34 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [experimentSummary, setExperimentSummary] = useState<ExperimentSummary | null>(null);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
+
+  const [isSummaryOpen, setIsSummaryOpen] = useState(false);
+
+  const fetchExperimentSummary = async () => {
+    try {
+      const response = await fetch("http://localhost:8000/experiment-summary");
+
+      if (!response.ok) {
+        throw new Error("Experiment summary request failed.");
+      }
+
+      const data = await response.json();
+      setExperimentSummary(data);
+      setSummaryError(null);
+    } catch (err) {
+      setSummaryError(
+        err instanceof Error ? err.message : "Could not load experiment summary."
+      );
+    }
+  };
+
+useEffect(() => {
+  fetchExperimentSummary();
+}, []);
+
+
   const handleRun = async () => {
     if (!prompt.trim()) {
       alert("Please enter a prompt first.");
@@ -436,6 +481,7 @@ function App() {
 
       const data = await response.json();
       setResult(data);
+      await fetchExperimentSummary();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
@@ -462,6 +508,127 @@ function App() {
             and improves the prompt when needed.
           </p>
         </section>
+
+        <section className={`summary-card ${isSummaryOpen ? "open" : ""}`}>
+          <button
+            className="summary-toggle"
+            onClick={() => setIsSummaryOpen((current) => !current)}
+            type="button"
+          >
+            <div>
+              <p className="eyebrow small">Benchmark Evaluation</p>
+              <h2>Experiment Summary Dashboard</h2>
+              <p>
+                Aggregated benchmark results for prompt quality improvement,
+                optimization rate, and category-level performance.
+              </p>
+            </div>
+
+            <span className="summary-toggle-icon">
+              {isSummaryOpen ? "Hide ▲" : "Show ▼"}
+            </span>
+          </button>
+
+          {isSummaryOpen && (
+            <div className="summary-content">
+              <div className="summary-actions">
+                <button className="secondary-button" onClick={fetchExperimentSummary}>
+                  Refresh Summary
+                </button>
+              </div>
+
+              {summaryError && <p className="error-message">{summaryError}</p>}
+
+              {experimentSummary ? (
+                <>
+                  <div className="summary-grid">
+                    <div className="summary-metric">
+                      <span>Total Runs</span>
+                      <strong>{experimentSummary.total_runs}</strong>
+                    </div>
+                    <div className="summary-metric">
+                      <span>Optimized Runs</span>
+                      <strong>{experimentSummary.optimized_runs}</strong>
+                    </div>
+                    <div className="summary-metric">
+                      <span>Avg. Original Score</span>
+                      <strong>
+                        {experimentSummary.average_original_score ?? "N/A"}/5
+                      </strong>
+                    </div>
+                    <div className="summary-metric">
+                      <span>Avg. Improved Score</span>
+                      <strong>
+                        {experimentSummary.average_improved_score ?? "N/A"}/5
+                      </strong>
+                    </div>
+                    <div className="summary-metric highlight">
+                      <span>Avg. Score Gain</span>
+                      <strong>
+                        {experimentSummary.average_score_gain !== null
+                          ? `+${experimentSummary.average_score_gain}/5`
+                          : "N/A"}
+                      </strong>
+                    </div>
+                  </div>
+
+                  <div className="summary-tables">
+                    <div className="summary-table-card">
+                      <h3>Category Breakdown</h3>
+                      <div className="summary-table">
+                        <div className="summary-row header">
+                          <span>Category</span>
+                          <span>Runs</span>
+                          <span>Gain</span>
+                        </div>
+                        {Object.entries(experimentSummary.category_breakdown).map(
+                          ([category, stats]) => (
+                            <div className="summary-row" key={category}>
+                              <span>{formatLabel(category)}</span>
+                              <span>{stats.count}</span>
+                              <span>
+                                {stats.average_score_gain !== null
+                                  ? `+${stats.average_score_gain}`
+                                  : "N/A"}
+                              </span>
+                            </div>
+                          )
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="summary-table-card">
+                      <h3>Difficulty Breakdown</h3>
+                      <div className="summary-table">
+                        <div className="summary-row header">
+                          <span>Difficulty</span>
+                          <span>Runs</span>
+                          <span>Gain</span>
+                        </div>
+                        {Object.entries(experimentSummary.difficulty_breakdown).map(
+                          ([difficulty, stats]) => (
+                            <div className="summary-row" key={difficulty}>
+                              <span>{formatLabel(difficulty)}</span>
+                              <span>{stats.count}</span>
+                              <span>
+                                {stats.average_score_gain !== null
+                                  ? `+${stats.average_score_gain}`
+                                  : "N/A"}
+                              </span>
+                            </div>
+                          )
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <p className="hint">No experiment summary loaded yet.</p>
+              )}
+            </div>
+          )}
+        </section>
+
 
         <section className="layout">
           <aside className="info-panel">

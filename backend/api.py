@@ -1,3 +1,4 @@
+from summary import build_experiment_summary
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -25,6 +26,9 @@ class AnalyzePromptRequest(BaseModel):
 def root():
     return {"message": "PromptRefiner API is running"}
 
+@app.get("/experiment-summary")
+def get_experiment_summary():
+    return build_experiment_summary()
 
 @app.post("/analyze-prompt")
 def analyze_prompt(request: AnalyzePromptRequest):
